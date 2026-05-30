@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>心エコー所見 横断検索ダッシュボード（完全スタンドアロン版）</title>
+    <style>
+        :root {
+            --primary: #1a365d;
+            --secondary: #2b6cb0;
+            --accent: #e74c3c;
+            --bg-color: #f4f6f7;
+            --card-bg: #ffffff;
+            --text-main: #2d3748;
+            --border: #cbd5e0;
+            --tag-bg: #e2e8f0;
+            --tag-text: #4a5568;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            line-height: 1.6;
+        }
+
+        header {
+            background-color: var(--primary);
+            color: #fff;
+            padding: 25px 30px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        header h1 {
+            font-size: 1.8rem;
+            margin-bottom: 5px;
+        }
+
+        header p {
+            font-size: 0.95rem;
+            color: #cbd5e0;
+        }
+
+        .container {
+            display: flex;
+            max-width: 1500px;
+            margin: 20px auto;
+            padding: 0 20px;
+            gap: 20px;
+        }
+
+        /* Sidebar Filters */
+        .sidebar {
+            flex: 0 0 320px;
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            height: fit-content;
+            position: sticky;
+            top: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+
+        .filter-group {
+            margin-bottom: 25px;
+        }
+
+        .filter-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .filter-group h3 {
+            font-size: 1.05rem;
+            margin-bottom: 12px;
+            color: var(--primary);
+            border-bottom: 2px solid var(--secondary);
+            padding-bottom: 5px;
+            font-weight: bold;
+        }
+
+        .search-box {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            font-size: 0.95rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .search-box:focus {
+            border-color: var(--secondary);
+            box-shadow: 0 0 0 3px rgba(43, 108, 176, 0.1);
+        }
+
+        .filter-btn {
+            display: block;
+            width: 100%;
+            text-align: left;
+            padding: 8px 12px;
+            margin-bottom: 6px;
+            background: none;
+            border: 1px solid transparent;
+            border-radius: 4px;
+            cursor: pointer;
+            color: var(--text-main);
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+        }
+
+        .filter-btn:hover {
+            background-color: #edf2f7;
+        }
+
+        .filter-btn.active {
+            background-color: #ebf8ff;
+            border-color: #63b3ed;
+            color: #2b6cb0;
+            font-weight: bold;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+        }
+
+        .results-info {
+            margin-bottom: 15px;
+            color: #4a5568;
+            font-size: 0.95rem;
+            font-weight: bold;
+            background: var(--card-bg);
+            padding: 10px 15px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(450px, 1fr));
+            gap: 20px;
+        }
+
+        /* Template Card */
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-top: 5px solid #4a5568;
+            border-radius: 6px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.08);
+        }
+
+        .card[data-category="総合型"] { border-top-color: #2b6cb0; }
+        .card[data-category="分類型"] { border-top-color: #2ca58d; }
+        .card[data-category="重症型"] { border-top-color: #c53030; }
+
+        .card-header {
+            margin-bottom: 12px;
+        }
+
+        .card-title {
+            font-size: 1.1rem;
+            color: var(--primary);
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+
+        .tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .tag {
+            background: var(--tag-bg);
+            color: var(--tag-text);
+            font-size: 0.75rem;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-weight: bold;
+        }
+
+        .cat-tag {
+            background-color: var(--primary);
+            color: #fff;
+        }
+        .card[data-category="分類型"] .cat-tag { background-color: #2ca58d; }
+        .card[data-category="重症型"] .cat-tag { background-color: #c53030; }
+
+        .card-body {
+            background-color: #f8fafc;
+            padding: 15px;
+            border: 1px dashed #cbd5e0;
+            border-radius: 4px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 0.95rem;
+            white-space: pre-wrap;
+            flex-grow: 1;
+            color: #2d3748;
+            line-height: 1.6;
+        }
+
+        .copy-btn {
+            margin-top: 12px;
+            padding: 8px 16px;
+            background-color: #edf2f7;
+            border: 1px solid #cbd5e0;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: bold;
+            text-align: center;
+            transition: all 0.2s;
+            color: var(--primary);
+        }
+
+        .copy-btn:hover {
+            background-color: var(--secondary);
+            color: #fff;
+            border-color: var(--secondary);
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .container {
+                flex-direction: column;
+            }
+            .sidebar {
+                flex: none;
+                position: static;
+                width: 100%;
+            }
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>心エコー図検査 所見テンプレートダッシュボード</h1>
+        <p>【完全ブラウザ完結版】最新ガイドライン（2025-2026年）に準拠したすべての疾患・機能別定型文を横断検索</p>
+    </header>
+
+    <div class="container">
+        <!-- Sidebar Filters -->
+        <aside class="sidebar">
+            <div class="filter-group">
+                <h3>フリーワード横断検索</h3>
+                <input type="text" id="searchInput" class="search-box" placeholder="キーワードを入力（例: 左房, LVEF, AS）...">
+            </div>
+
+            <div class="filter-group">
+                <h3>カテゴリー分類</h3>
+                <button class="filter-btn active" data-filter="category" data-val="all">すべてのカテゴリー</button>
+                <button class="filter-btn" data-filter="category" data-val="総合型">総合型（疾患・病態統合所見）</button>
+                <button class="filter-btn" data-filter="category" data-val="分類型">機能分類型（左室・左房・右室）</button>
+                <button class="filter-btn" data-filter="category" data-val="重症型">重症型（弁膜症重症度特化）</button>
+            </div>
+
+            <div class="filter-group">
+                <h3>臓器・機能別タグ</h3>
+                <button class="filter-btn active" data-filter="tag" data-val="all">すべてのタグ</button>
+                <button class="filter-btn" data-filter="tag" data-val="左房機能">左房機能・形態</button>
+                <button class="filter-btn" data-filter="tag" data-val="左室収縮">左室収縮能</button>
+                <button class="filter-btn" data-filter="tag" data-val="左室拡張">左室拡張能</button>
+                <button class="filter-btn" data-filter="tag" data-val="心不全">心不全・心筋症</button>
+                <button class="filter-btn" data-filter="tag" data-val="虚血">虚血性心疾患</button>
+                <button class="filter-btn" data-filter="tag" data-val="弁膜症">弁膜症</button>
+                <button class="filter-btn" data-filter="tag" data-val="右心・肺">右心・肺高血圧</button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="results-info">
+                <span id="resultsCount">表示件数: 0 件</span>
+                <span style="font-size: 0.8rem; color: #718096;">※「コピー」ボタンでクリップボードにコピーされます</span>
+            </div>
+            <div class="grid" id="templateGrid">
+                <!-- JavaScriptでここにカードが動的に挿入されます -->
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // すべての定型文テンプレートデータを内包する配列オブジェクト
+        const templates = [
+            // 1. 左房機能・形態
+            {
+                id: "la-1",
+                category: "分類型",
+                tags: ["左房機能"],
+                title: "左房容積・形態：正常",
+                text: "左房容積指数（LAVI）は ○○ mL/m² と正常範囲内であり、明らかな左房拡大を認めません。心房中隔に明らかな異常血流や短絡は認めません。"
+            },
+            {
+                id: "la-2",
+                category: "分類型",
+                tags: ["左房機能", "左室拡張"],
+                title: "左房容積：拡大（慢性負荷）",
+                text: "左房は前後径 ○○ mm、左房容積指数（LAVI）は ○○ mL/m²（≧34 mL/m²）と拡大しています。慢性的な左室充満圧の上昇（拡張障害）や心房負荷が示唆される所見です。明らかな左心耳血栓は描出されません。"
+            },
+            {
+                id: "la-3",
+                category: "分類型",
+                tags: ["左房機能", "心不全"],
+                title: "左房リザーバ機能（LA Strain）低下",
+                text: "左房容積指数は ○○ mL/m² と拡大しており、スペックルトラッキング法による左房リザーバストレイン（LA reservoir strain）は ○○ % と低下を認めます。左室拡張能の低下に伴う左房コンプライアンスの著明な低下が示唆され、HFpEFの病態を支持する所見です。"
+            },
+            {
+                id: "la-4",
+                category: "分類型",
+                tags: ["左房機能", "弁膜症"],
+                title: "心房細動・巨大左房",
+                text: "心房細動リズムであり、左房容積指数は ○○ mL/m² と著明な巨大左房（Giant LA）を呈しています。左房内の血流停滞に伴うモヤモヤエコー（SEC: spontaneous echo contrast）を認め、血栓形成のハイリスク状態です。"
+            },
+
+            // 2. 総合型（心不全・心筋症）
+            {
+                id: "comp-1",
+                category: "総合型",
+                tags: ["心不全", "左室収縮", "左房機能"],
+                title: "HFrEF (左室収縮不全を伴う心不全)",
+                text: "左室は LVDd ○○ mm と著明に拡大しており、壁運動はびまん性に高度低下を認めます（LVEF ○○ %）。HFrEFの病態に合致する所見です。\n左房の拡大（LAVI ○○ mL/m²）を伴い、僧帽弁流入血流波形は拘束型（E/A ○○, DcT ○○ ms）、平均 E/e' は ○○ と上昇しており、左室充満圧の高度な上昇が示唆されます。テザリングに伴う二次性MR（○○度）を合併しています。"
+            },
+            {
+                id: "comp-2",
+                category: "総合型",
+                tags: ["心不全", "左室拡張", "左房機能"],
+                title: "HFpEF (左室収縮能が保たれた心不全)",
+                text: "左室収縮能は LVEF ○○ % と保持されていますが、左室壁の同心性肥大（IVST ○○ mm, PWT ○○ mm）を認めます。\n拡張機能評価では、左房容積指数拡大（LAVI ○○ mL/m²）、組織ドプラ側壁 e' 低下（○○ m/s）、E/e' 上昇（○○）、TR Vmax上昇（○○ m/s）を認め、ガイドライン上の左室拡張不全（Grade ○○）の指標を満たします。慢性的な左室充満圧上昇に伴うHFpEFの病態に合致する所見です。"
+            },
+            {
+                id: "comp-3",
+                category: "総合型",
+                tags: ["心不全", "左室収縮", "弁膜症"],
+                title: "拡張型心筋症 (DCM) 疑い",
+                text: "左室は球形化し著明に拡大（LVDd ○○ mm, LVEDV ○○ mL）しており、壁の菲薄化を伴います。\n壁運動は特定の冠動脈領域に一致しないびまん性の高度低下（LVEF ○○ %）を呈し、拡張型心筋症（DCM）が強く疑われます。左室拡大に伴う乳頭筋の変位により、テザリングによる二次性MR（○○度）を合併しています。"
+            },
+            {
+                id: "comp-4",
+                category: "総合型",
+                tags: ["心不全", "弁膜症"],
+                title: "閉塞性肥大型心筋症 (HOCM)",
+                text: "基部心室中隔に限局した非対称性の著明な肥大（IVST ○○ mm）を認めます。\n収縮期に僧帽弁前尖の収縮期前方運動（SAM）を認め、これ伴う左室流出路狭窄（最大流速 ○○ m/s, 最大圧較差 ○○ mmHg）および後方へ向かう僧帽弁逆流（MR ○○度）を合併しています。バルサルバ負荷により圧較差は ○○ mmHg まで増悪します。"
+            },
+            {
+                id: "comp-5",
+                category: "総合型",
+                tags: ["心不全", "左室収縮", "左房機能"],
+                title: "心アミロイドーシス疑い",
+                text: "左室壁全体に顆粒状の高エコー（granular sparkling）を伴う著明な求心性肥大（IVST ○○ mm）を認めます。\nLVEFは ○○ % と保持されていますが、GLS（長軸方向ストレイン）は -○○ % と低下し、心尖部の保持（Apical Sparing）という特徴的なパターンを呈しています。両心房の著明な拡大、心房中隔の肥厚、および心嚢液貯留を伴い、心アミロイドーシスを強く疑うエコー所見です。"
+            },
+            {
+                id: "comp-5b",
+                category: "総合型",
+                tags: ["心不全", "左室収縮"],
+                title: "心臓サルコイドーシス疑い",
+                text: "左室の心室中隔基部等において、冠動脈支配領域に一致しない限局性の壁の菲薄化と壁運動低下（akinesis）を認めます。一部に瘤状変化（aneurysmal change）を疑う所見を認め、心臓サルコイドーシスを考慮する所見です。LVEFは全体として ○○ % に低下しています。"
+            },
+
+            // 3. 総合型（虚血・合併症・その他）
+            {
+                id: "comp-6",
+                category: "総合型",
+                tags: ["虚血", "左室収縮"],
+                title: "急性心筋梗塞 (AMI) / ACS",
+                text: "左室 ○○（例：前壁中隔から心尖部）にかけて、冠動脈 ○○（例：LAD）領域に一致した局所壁運動異常（severe hypokinesis 〜 akinesis）を認めます。\n壁の菲薄化や輝度上昇は目立たず、急性期の虚血または梗塞（ACS/AMI）を示唆する所見です。非梗塞部位の代償性過剰運動を認めますが、全体のLVEFは ○○ % に低下しています。現時点で明らかな機械的合併症は認めません。"
+            },
+            {
+                id: "comp-7",
+                category: "総合型",
+                tags: ["虚血", "左室収縮"],
+                title: "陳旧性心筋梗塞 (OMI)",
+                text: "左室 ○○（例：下壁〜後壁）にかけて、壁の明らかな菲薄化（厚さ ○○ mm）とエコー輝度の上昇を認めます。\n同領域の壁運動は無動（akinesis）〜 奇異性運動（dyskinesis）を呈しており、冠動脈 ○○（例：RCA）領域の陳旧性心筋梗塞（OMI）の所見です。心尖部に明らかな左室内血栓の形成は認めません。"
+            },
+            {
+                id: "comp-8",
+                category: "総合型",
+                tags: ["虚血", "右心・肺"],
+                title: "心室中隔穿孔 (VSP) - AMI合併症",
+                text: "急性心筋梗塞に合併し、心室中隔 ○○ において連続性が絶たれており、長径 ○○ mm の穿孔（VSP）を認めます。カラードプラにて左室から右室へ向かう短絡血流を認め、最大流速は ○○ m/s（推定圧較差 ○○ mmHg）です。右室の容量ならびに圧力負荷所見を伴う緊急の血行動態です。"
+            },
+            {
+                id: "comp-9",
+                category: "総合型",
+                tags: ["右心・肺", "心不全"],
+                title: "急性肺塞栓症 / 急性肺性心",
+                text: "右室は著明に拡大（RV basal径 ○○ mm）し、心室中隔は左室側へ圧排され、左室は D-shape を呈しています。\n右室自由壁の壁運動は低下していますが、心尖部の収縮は保たれる「McConnell's sign」を認めます。TR Vmaxは ○○ m/sと上昇し、急性肺塞栓症による急性右心負荷（急性肺性心）に典型的な所見です。下大静脈は ○○ mm と拡大し呼吸変動は消失しています。"
+            },
+            {
+                id: "comp-10",
+                category: "総合型",
+                tags: ["弁膜症", "心不全"],
+                title: "感染性心内膜炎 (IE) 疑い",
+                text: "○○弁（例：大動脈弁右冠尖）の心室側に、大きさ ○○ × ○○ mm の独立した可動性を伴う高エコー腫瘤（疣贅：Vegetation 疑い）が付着しています。\n同弁尖の破壊（穿孔疑い）を伴い、重度の逆流（Severe ○R）を生じています。大動脈基部周囲にエコーフリースペース（膿瘍形成疑い）を認め、感染性心内膜炎（IE）の所見として矛盾しません。経食道心エコー（TEE）を推奨します。"
+            },
+
+            // 4. 分類型（収縮・拡張・右室機能）
+            {
+                id: "class-1",
+                category: "分類型",
+                tags: ["左室収縮"],
+                title: "左室収縮機能：正常",
+                text: "左室の壁運動は正常であり、局所壁運動異常（asynergy）は認めません。Biplane Simpson法によるLVEFは ○○ % と正常に保持されています。"
+            },
+            {
+                id: "class-2",
+                category: "分類型",
+                tags: ["左室収縮"],
+                title: "左室収縮機能：高度低下",
+                text: "左室の壁運動はびまん性に著明に低下しており、LVEFは ○○ %（＜30%）と高度の左室収縮不全を認めます。"
+            },
+            {
+                id: "class-3",
+                category: "分類型",
+                tags: ["左室拡張"],
+                title: "左室拡張機能：正常",
+                text: "左室拡張機能の主要パラメータ（中隔 e' ≧7 または側壁 e' ≧10、平均 E/e' ≦14、LAVI ≦34 mL/m²、TR Vmax ≦2.8 m/s）は正常範囲内であり、現時点で明らかな左室拡張不全や左室充満圧の上昇は認められません。"
+            },
+            {
+                id: "class-4",
+                category: "分類型",
+                tags: ["左室拡張", "左房機能"],
+                title: "左室拡張機能：Grade I (弛緩障害)",
+                text: "僧帽弁流入血流波形は E/A ○○（≦0.8）、最大 E波速度 ○○ cm/s（≦50 cm/s）であり、Grade I の拡張不全（弛緩障害型）を認めます。左室充満圧の明らかな上昇は示唆されません。"
+            },
+            {
+                id: "class-5",
+                category: "分類型",
+                tags: ["左室拡張", "左房機能"],
+                title: "左室拡張機能：Grade II (偽正常化パターン)",
+                text: "僧帽弁流入血流波形は E/A ○○（0.8〜2.0）ですが、組織ドプラ指標の低下および 平均 E/e' の上昇（○○ ＞14）、LAVI拡大（○○ mL/m²）を伴い、Grade II 拡張不全（偽正常化パターン）を呈しています。左室充満圧の中等度上昇が示唆されます。"
+            },
+            {
+                id: "class-6",
+                category: "分類型",
+                tags: ["左室拡張", "左房機能"],
+                title: "左室拡張機能：Grade III (拘束型パターン)",
+                text: "僧帽弁流入血流波形は E/A ○○（≧2.0）、揮発性の DcT ○○ ms（＜160 ms）であり、Grade III 拡張不全（拘束型パターン）を認めます。左室のコンプライアンスが著しく低下しており、左室充満圧の高度な上昇が示唆されます。"
+            },
+            {
+                id: "class-7",
+                category: "分類型",
+                tags: ["右心・肺"],
+                title: "右室機能・肺高血圧症",
+                text: "右室は拡大しており、TAPSE ○○ mm（＜17 mm）、右室FAC ○○ % と右室収縮機能の低下を認めます。\n三尖弁逆流速度（TR Vmax）は ○○ m/s であり、推定肺動脈収縮期圧（PASP）は ○○ mmHg と顕著に上昇しており、肺高血圧症の存在が示唆されます。"
+            },
+
+            // 5. 重症型（弁膜症別）
+            {
+                id: "sev-1",
+                category: "重症型",
+                tags: ["弁膜症", "左室収縮"],
+                title: "大動脈弁狭窄症：軽度〜中等度 AS",
+                text: "大動脈弁尖に変性と石灰化を認め、可動性が低下しています。Vmax ○○ m/s、mean PG ○○ mmHg、AVA ○○ cm² であり、血行動態的には 【軽度 / 中等度】 大動脈弁狭窄症の所見です。左室収縮能は保持されています。"
+            },
+            {
+                id: "sev-2",
+                category: "重症型",
+                tags: ["弁膜症", "左室収縮"],
+                title: "大動脈弁狭窄症：高圧較差 重症 AS (High-gradient)",
+                text: "大動脈弁は高度に石灰化し、著明な開放制限を認めます。Vmax ○○ m/s（≧4.0 m/s）、mean PG ○○ mmHg（≧40 mmHg）、AVA ○○ cm²（＜1.0 cm²）であり、典型的な「高圧較差 重症大動脈弁狭窄症」の指標を満たします。LVEFは ○○ % と保たれています。"
+            },
+            {
+                id: "sev-3",
+                category: "重症型",
+                tags: ["弁膜症", "左室収縮"],
+                title: "大動脈弁狭窄症：Paradoxical LF-LG 重症 AS",
+                text: "AVA ○○ cm² と重度の狭窄ですが、Vmax ○○ m/s、mean PG ○○ mmHg と低圧較差を示しています。\nLVEFは ○○ % と保持されていますが、高度な同心性左室肥大により左室腔が狭小化し、一回拍出量指数（SVI）が ○○ mL/m²（≦35 mL/m²）と低流量状態にあります。「Paradoxical Low-flow, Low-gradient 重症AS」の病態です。"
+            },
+            {
+                id: "sev-4",
+                category: "重症型",
+                tags: ["弁膜症", "左室収縮"],
+                title: "大動脈弁狭窄症：Classical LF-LG 重症 AS",
+                text: "AVA ○○ cm² と重度の狭窄ですが、Vmax ○○ m/s、mean PG ○○ mmHg と低圧較差です。\nLVEFが ○○ % と著明に低下しており、心機能低下による低心拍出のために圧較差が過小評価されている状態（Classical LF-LG 重症AS疑い）です。低用量ドブタミン負荷心エコーの施行を推奨します。"
+            },
+            {
+                id: "sev-5",
+                category: "重症型",
+                tags: ["弁膜症", "左房機能"],
+                title: "僧帽弁逆流症：一次性(器質性) 重症 MR",
+                text: "僧帽弁 ○○（例：後尖 P2セグメント）に逸脱（Prolapse）および腱索断裂（Flail）を認め、前壁方向へ向かうコアンダ効果を伴う偏心性の逆流シグナルを認めます。\nVena contracta ○○ mm、PISA法による EROA ○○ cm²（≧0.4 cm²）、Regurgitant volume ○○ mL/beat であり、重度の一次性僧帽弁逆流症（Severe primary MR）と評価します。左房および左室の容量負荷所見を伴っています。"
+            },
+            {
+                id: "sev-6",
+                category: "重症型",
+                tags: ["弁膜症", "左室収縮"],
+                title: "僧帽弁逆流症：二次性(機能性) 重症 MR",
+                text: "左室の拡大および球形化に伴う乳頭筋の変位により、僧帽弁尖の高度なテザリング（Tenting height ○○ mm）を認めます。\n接合不良による中心性の逆流を認め、EROA ○○ cm²（≧0.2 cm²）、Regurgitant volume ○○ mL/beat であり、心不全・弁膜症ガイドラインに基づく「重度の二次性僧帽弁逆流症（Severe secondary MR）」の所見です。"
+            },
+            {
+                id: "sev-7",
+                category: "重症型",
+                tags: ["弁膜症"],
+                title: "大動脈弁逆流症：重症 AR",
+                text: "大動脈弁からの逆流血流が左室流出路の大部分を占めており、Vena contracta ○○ mm（≧6 mm）、AR jet width / LVOT径比 ○○ %（≧65%）、PHT ○○ ms（≦200 ms）と重度の逆流指標を満たします。脈波ドプラにて、下行大動脈における拡張期全血流逆転を明瞭に認め、重度の大動脈弁逆流症（Severe AR）と評価します。左室の容量負荷が進行しています。"
+            },
+            {
+                id: "sev-8",
+                category: "重症型",
+                tags: ["弁膜症", "右心・肺"],
+                title: "三尖弁逆流症：重症 TR",
+                text: "三尖弁輪の著明な拡大（収縮期径 ○○ mm）およびテザリングを伴い、右房内に広範に広がる逆流シグナルを認めます。Vena contracta ○○ mm（≧7 mm）であり、肝静脈血流において収縮期逆転波（Systolic flow reversal）を認めます。重度の三尖弁逆流症（Severe TR）と評価します。"
+            },
+            {
+                id: "sev-9",
+                category: "重症型",
+                tags: ["弁膜症", "左房機能"],
+                title: "僧帽弁狭窄症：リウマチ性 重症 MS",
+                text: "僧帽弁尖の肥厚・石灰化および交連部の癒合を認め、拡張期における前尖のドーミング（Doming）を伴う典型的なリウマチ性変化です。MVAは ○○ cm²（≦1.5 cm²）、mean PG は ○○ mmHg であり、重度僧帽弁狭窄症（Severe MS）の所見です。著明な左房拡大とモヤモヤエコーを伴います。"
+            }
+        ];
+
+        // UI管理用変数
+        const grid = document.getElementById("templateGrid");
+        const countDisplay = document.getElementById("resultsCount");
+        const searchInput = document.getElementById("searchInput");
+        const filterBtns = document.querySelectorAll(".filter-btn");
+
+        let currentCategory = "all";
+        let currentTag = "all";
+        let currentSearch = "";
+
+        // カードを動的に描画するメイン関数
+        function renderCards() {
+            grid.innerHTML = "";
+            let count = 0;
+
+            templates.forEach(t => {
+                // カテゴリーによる絞り込み
+                if (currentCategory !== "all" && t.category !== currentCategory) return;
+                
+                // タグによる絞り込み
+                if (currentTag !== "all" && !t.tags.includes(currentTag)) return;
+                
+                // 検索キーワードによる絞り込み
+                if (currentSearch !== "") {
+                    const term = currentSearch.toLowerCase();
+                    if (!t.title.toLowerCase().includes(term) && !t.text.toLowerCase().includes(term)) {
+                        return;
+                    }
+                }
+
+                // カード要素の作成
+                const card = document.createElement("div");
+                card.className = "card";
+                card.setAttribute("data-category", t.category);
+
+                const tagsHtml = t.tags.map(tag => `<span class="tag">${tag}</span>`).join("");
+
+                card.innerHTML = `
+                    <div class="card-header">
+                        <div class="tags">
+                            <span class="tag cat-tag">${t.category}</span>
+                            ${tagsHtml}
+                        </div>
+                        <div class="card-title" style="margin-top: 8px;">${t.title}</div>
+                    </div>
+                    <div class="card-body" id="text-${t.id}">${t.text}</div>
+                    <button class="copy-btn" onclick="copyText('text-${t.id}')">所見をコピーする</button>
+                `;
+                grid.appendChild(card);
+                count++;
+            });
+
+            countDisplay.textContent = `表示件数: ${count} 件`;
+        }
+
+        // コピー機能
+        window.copyText = function(elementId) {
+            const text = document.getElementById(elementId).innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                alert("クリップボードに所見コメントをコピーしました。カルテやレポートシステムに貼り付けてご使用ください。");
+            }).catch(err => {
+                alert("コピーに失敗しました。手動で選択してコピーしてください。");
+            });
+        };
+
+        // イベントリスナーの設定
+        searchInput.addEventListener("input", (e) => {
+            currentSearch = e.target.value;
+            renderCards();
+        });
+
+        filterBtns.forEach(btn => {
+            btn.addEventListener("click", (e) => {
+                const filterType = e.target.getAttribute("data-filter");
+                const filterVal = e.target.getAttribute("data-val");
+
+                // アクティブ状態の表示切り替え
+                document.querySelectorAll(`.filter-btn[data-filter="${filterType}"]`).forEach(b => b.classList.remove("active"));
+                e.target.classList.add("active");
+
+                if (filterType === "category") currentCategory = filterVal;
+                if (filterType === "tag") currentTag = filterVal;
+
+                renderCards();
+            });
+        });
+
+        // 初回起動時の描画
+        renderCards();
+    </script>
+</body>
+</html>
